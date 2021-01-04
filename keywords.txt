@@ -1,0 +1,12 @@
+#######################################
+# Syntax Coloring Map For SoftwarePinInterrupts
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+attachSoftwareInterrupt	KEYWORD2
+disableSoftwareInterrupt	KEYWORD2
+enableSoftwareInterrupt	KEYWORD2
+handleSoftwareInterrupts	KEYWORD2
