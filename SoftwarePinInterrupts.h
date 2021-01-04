@@ -14,15 +14,15 @@
  * Defines how many pins can have have software interrupts attached. Increasing has a small memory penalty.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_PINS
-#define SW_PIN_INTERRUPTS_MAX_PINS 32
-#endif
+#define SW_PIN_INTERRUPTS_MAX_PINS 32u
+#endif // SW_PIN_INTERRUPTS_MAX_PINS
 
 /*
  * Defines how many handler functions can be attached to a single pin. Increasing has a small memory penalty.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN
-#define SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN 8
-#endif
+#define SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN 8u
+#endif // SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN
 
 /*
  * Attach a handler function to the provided pin with the provided interrupt mode
@@ -62,4 +62,4 @@ void enableSoftwareInterrupt(int pinNumber);
  */
 void handleSoftwareInterrupts();
 
-#endif
+#endif // SoftwarePinInterrupts_h

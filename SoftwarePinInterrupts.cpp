@@ -2,7 +2,7 @@
  * SoftwarePinInterrupts.cpp
  *
  * Library for sensing state changes on digital input pins, similar to the attachInterrupt() function
- * but works on all digital pins. Supports optional debouncing, and multiple handlers on a single pin.
+ * but works on all digital pins. Supports multiple handlers on a single pin, and debouncing.
  *
  * Created by Erik Nyquist, January 3rd, 2021
  */
@@ -10,18 +10,18 @@
 #include "Arduino.h"
 #include "SoftwarePinInterrupts.h"
 
- /* Structure to hold all the information required to debounce a single pin */
+ /* Structure to hold all the information required to debounce/track a single pin */
 typedef struct
 {
-  bool enabled;                                                        // SW interrupts enabled for this pin?
-  int pin;                                                             // Pin number
-  int interrupt_mode;                                                  // Defines when the interrupt should be triggered
-  int debounce_time_ms;                                                // Debounce time in milliseconds
-  void (*handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN])(void);      // Handlers to run on pin state change
-  int handler_count;                                                   // Number of handlers registered
-  unsigned long last_change_ms;                                        // millis() when last debounce was started
-  bool debouncing;                                                     // Currently debouncing?
-  int pin_state;                                                       // Current pin state
+    bool enabled;                                                        // SW interrupts enabled for this pin?
+    int pin;                                                             // Pin number
+    int interrupt_mode;                                                  // Defines when the interrupt should be triggered
+    unsigned debounce_time_ms;                                           // Debounce time in milliseconds
+    void (*handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN])(void);      // Handlers to run on pin state change
+    unsigned handler_count;                                              // Number of handlers registered
+    unsigned long last_change_ms;                                        // millis() when last debounce was started
+    bool debouncing;                                                     // Currently debouncing?
+    int pin_state;                                                       // Current pin state
 } input_debounce_t;
 
 
@@ -31,7 +31,7 @@ static input_debounce_t inputs[SW_PIN_INTERRUPTS_MAX_PINS];
 
 static void run_handlers(input_debounce_t *info)
 {
-    for (int i = 0; i < info->handler_count; i++)
+    for (unsigned i = 0u; i < info->handler_count; i++)
     {
         info->handlers[info->handler_count]();
     }
@@ -73,12 +73,12 @@ static void attach_pin_interrupt(int pinNumber, void (*pinChangeHandler)(void), 
     info->enabled = true;
     info->pin = pinNumber;
     info->interrupt_mode = interruptMode;
-    info->debounce_time_ms = debounceMs;
+    info->debounce_time_ms = (unsigned) debounceMs;
     info->last_change_ms = 0;
     info->debouncing = false;
     info->pin_state = digitalRead(pinNumber);
     info->handlers[info->handler_count] = pinChangeHandler;
-    info->handler_count += 1;
+    info->handler_count += 1u;
 }
 
 /*
@@ -121,6 +121,7 @@ void enableSoftwareInterrupt(int pinNumber)
     {
         if (inputs[i].pin == pinNumber)
         {
+            inputs[i].pin_state = digitalRead(inputs[i].pin);
             inputs[i].enabled = true;
             break;
         }
@@ -169,6 +170,7 @@ void handleSoftwareInterrupts()
 
             if (new_state != inputs[i].pin_state)
             {
+                // Pin state changed
                 inputs[i].pin_state = new_state;
 
                 if ((inputs[i].interrupt_mode == RISING) && (new_state == LOW))
@@ -183,14 +185,15 @@ void handleSoftwareInterrupts()
                     continue;
                 }
 
-                // Pin state changed, start debounce timer or run handler immediately if no debounce time
-                if (inputs[i].debounce_time_ms > 0)
+                if (inputs[i].debounce_time_ms > 0u)
                 {
+                    // Non-zero debounce time, start debounce timer for this pin
                     inputs[i].last_change_ms = millis();
                     inputs[i].debouncing = true;
                 }
                 else
                 {
+                    // Debounce time is 0. Run handlers for this pin immediately, if applicable
                     if ((inputs[i].interrupt_mode == FALLING) ||
                         (inputs[i].interrupt_mode == RISING) ||
                         (inputs[i].interrupt_mode == CHANGE))
