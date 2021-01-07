@@ -25,6 +25,16 @@
 #endif // SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN
 
 /*
+ * Prints extra debugging information on the serial port
+ */
+#ifndef SW_PIN_INTERRUPTS_SERIAL_DEBUG
+#define SW_PIN_INTERRUPTS_SERIAL_DEBUG 0
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
+
+#define SW_PIN_INTERRUPTS_HIGH 4
+#define SW_PIN_INTERRUPTS_LOW 5
+
+/*
  * Attach a handler function to the provided pin with the provided interrupt mode
  *
  * @param pinNumber         Pin number to attach handler to
