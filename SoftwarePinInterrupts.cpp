@@ -10,22 +10,31 @@
 #include "Arduino.h"
 #include "SoftwarePinInterrupts.h"
 
+/* Bit flag masks for input_debounce_t 'flags' field */
+#define ENABLED_BITMASK    (1u)
+#define PIN_STATE_BITMASK  (1u << 1u)
+#define DEBOUNCING_BITMASK (1u << 2u)
+
+/* Structure to hold a single event callback, and the event it corresponds to */
+typedef struct
+{
+    void (*handler)(void);         // The handler to run
+    uint8_t mode;                  // The interrupt mode this handler was registered with
+} event_handler_t;
+
  /* Structure to hold all the information required to debounce/track a single pin */
 typedef struct
 {
-    bool enabled;                                                        // SW interrupts enabled for this pin?
-    int pin;                                                             // Pin number
-    int interrupt_mode;                                                  // Defines when the interrupt should be triggered
-    unsigned debounce_time_ms;                                           // Debounce time in milliseconds
-    void (*handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN])(void);      // Handlers to run on pin state change
-    unsigned handler_count;                                              // Number of handlers registered
+    event_handler_t handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN];    // Handlers to run on pin state change
     unsigned long last_change_ms;                                        // millis() when last debounce was started
-    bool debouncing;                                                     // Currently debouncing?
-    int pin_state;                                                       // Current pin state
+    unsigned debounce_time_ms;                                           // Debounce time in milliseconds
+    int pin;                                                             // Pin number
+    uint8_t flags;                                                       // Bit flags for this pin. 0=enabled,1=pin state,2=debouncing
+    uint8_t handler_count;                                               // Number of handlers registered
 } input_debounce_t;
 
 
-static int num_pins = 0;
+static uint8_t num_pins = 0;
 static input_debounce_t inputs[SW_PIN_INTERRUPTS_MAX_PINS];
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
@@ -40,12 +49,13 @@ static void log_event(input_debounce_t *info, const char *msg)
     Serial.print(".");
     Serial.print(remaining_ms);
     Serial.print("] [SoftwarePinInterrupts] ");
+
     if (NULL != info)
     {
         Serial.print("pin ");
         Serial.print(info->pin);
         Serial.print(", state=");
-        Serial.print((info->pin_state == HIGH) ? 1 : 0);
+        Serial.print((info->flags & PIN_STATE_BITMASK) ? 1 : 0);
     }
 
     if (NULL != msg)
@@ -60,35 +70,63 @@ static void log_event(input_debounce_t *info, const char *msg)
 
 static void run_handlers(input_debounce_t *info)
 {
-#if SW_PIN_INTERRUPTS_SERIAL_DEBUG
-    const char *event = "unknown";
-    char buf[32];
-    switch (info->interrupt_mode)
-    {
-        case SW_PIN_INTERRUPTS_HIGH:
-            event = "HIGH";
-            break;
-        case SW_PIN_INTERRUPTS_LOW:
-            event = "LOW";
-            break;
-        case RISING:
-            event = "RISING";
-            break;
-        case FALLING:
-            event = "FALLING";
-            break;
-        case CHANGE:
-            event = "CHANGE";
-            break;
-    }
-
-    (void) snprintf(buf, sizeof(buf), "%s event occurred", event);
-    log_event(info, buf);
-#endif
-
     for (unsigned i = 0u; i < info->handler_count; i++)
     {
-        info->handlers[i]();
+        event_handler_t *event = &info->handlers[i];
+        if ((event->mode == CHANGE) ||
+            (((info->flags & PIN_STATE_BITMASK) == 0u) && (event->mode == FALLING)) ||
+            ((info->flags & PIN_STATE_BITMASK) && (event->mode == RISING)))
+        {
+#if SW_PIN_INTERRUPTS_SERIAL_DEBUG
+            const char *eventstr = "unknown";
+            char buf[32];
+            switch (event->mode)
+            {
+                case RISING:
+                    eventstr = "RISING";
+                    break;
+                case FALLING:
+                    eventstr = "FALLING";
+                    break;
+                case CHANGE:
+                    eventstr = "CHANGE";
+                    break;
+            }
+
+            (void) snprintf(buf, sizeof(buf), "%s event occurred", eventstr);
+            log_event(info, buf);
+#endif
+            event->handler();
+        }
+    }
+}
+
+static void check_for_highlow(input_debounce_t *info)
+{
+    for (unsigned i = 0u; i < info->handler_count; i++)
+    {
+        event_handler_t *event = &info->handlers[i];
+        if ((((info->flags & PIN_STATE_BITMASK) == 0u) && (event->mode == SW_PIN_INTERRUPTS_LOW)) ||
+            ((info->flags & PIN_STATE_BITMASK) && (event->mode == SW_PIN_INTERRUPTS_HIGH)))
+        {
+#if SW_PIN_INTERRUPTS_SERIAL_DEBUG
+            const char *eventstr = "unknown";
+            char buf[32];
+            switch (event->mode)
+            {
+                case SW_PIN_INTERRUPTS_HIGH:
+                    eventstr = "HIGH";
+                    break;
+                case SW_PIN_INTERRUPTS_LOW:
+                    eventstr = "LOW";
+                    break;
+            }
+
+            (void) snprintf(buf, sizeof(buf), "%s event occurred", eventstr);
+            log_event(info, buf);
+#endif
+            event->handler();
+        }
     }
 }
 
@@ -117,6 +155,22 @@ static void attach_pin_interrupt(int pinNumber, void (*pinChangeHandler)(void), 
 
         info = &inputs[num_pins];
         num_pins += 1;
+
+        // First handler for this pin, set some initial values
+        info->pin = pinNumber;
+        info->debounce_time_ms = (unsigned) debounceMs;
+        info->last_change_ms = 0;
+        info->flags &= ~DEBOUNCING_BITMASK;
+        info->flags |= ENABLED_BITMASK;
+
+        if (digitalRead(pinNumber) == HIGH)
+        {
+            info->flags |= PIN_STATE_BITMASK;
+        }
+        else
+        {
+            info->flags &= ~PIN_STATE_BITMASK;
+        }
     }
 
     if (info->handler_count >= SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN)
@@ -125,14 +179,8 @@ static void attach_pin_interrupt(int pinNumber, void (*pinChangeHandler)(void), 
         return;
     }
 
-    info->enabled = true;
-    info->pin = pinNumber;
-    info->interrupt_mode = interruptMode;
-    info->debounce_time_ms = (unsigned) debounceMs;
-    info->last_change_ms = 0;
-    info->debouncing = false;
-    info->pin_state = digitalRead(pinNumber);
-    info->handlers[info->handler_count] = pinChangeHandler;
+    info->handlers[info->handler_count].handler = pinChangeHandler;
+    info->handlers[info->handler_count].mode = interruptMode;
     info->handler_count += 1u;
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
@@ -165,7 +213,7 @@ void disableSoftwareInterrupt(int pinNumber)
     {
         if (inputs[i].pin == pinNumber)
         {
-            inputs[i].enabled = false;
+            inputs[i].flags &= ~ENABLED_BITMASK;
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             log_event(&inputs[i], "input disabled");
@@ -184,8 +232,16 @@ void enableSoftwareInterrupt(int pinNumber)
     {
         if (inputs[i].pin == pinNumber)
         {
-            inputs[i].pin_state = digitalRead(inputs[i].pin);
-            inputs[i].enabled = true;
+            if (digitalRead(pinNumber) == HIGH)
+            {
+                inputs[i].flags |= PIN_STATE_BITMASK;
+            }
+            else
+            {
+                inputs[i].flags &= ~PIN_STATE_BITMASK;
+            }
+
+            inputs[i].flags |= ENABLED_BITMASK;
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             log_event(&inputs[i], "input enabled");
@@ -203,39 +259,45 @@ void handleSoftwareInterrupts()
     // Loop through all of the input signals, looking for changes
     for (int i = 0; i < num_pins; i++)
     {
-        if (!inputs[i].enabled)
+        if ((inputs[i].flags & ENABLED_BITMASK) == 0u)
         {
+            // Interrupts are disabled for this pin
             continue;
         }
 
-        if (inputs[i].debouncing)
+        if (inputs[i].flags & DEBOUNCING_BITMASK)
         {
             // Waiting for the debounce timer for this pin to expire
             if ((millis() - inputs[i].last_change_ms) >= inputs[i].debounce_time_ms)
             {
                 // Timer expired. Re-read pin state and run handler if it changed.
                 int new_state = digitalRead(inputs[i].pin);
-                if (new_state != inputs[i].pin_state)
-                {
-                    inputs[i].pin_state = new_state;
+                int old_state = (inputs[i].flags & PIN_STATE_BITMASK) ? HIGH : LOW;
 
-                    if (((inputs[i].interrupt_mode == FALLING) && (new_state == LOW))||
-                        ((inputs[i].interrupt_mode == RISING) && (new_state == HIGH)) ||
-                        (inputs[i].interrupt_mode == CHANGE))
+                if (new_state != old_state)
+                {
+                    if (new_state == HIGH)
                     {
-                        run_handlers(&inputs[i]);
+                        inputs[i].flags |= PIN_STATE_BITMASK;
                     }
+                    else
+                    {
+                        inputs[i].flags &= ~PIN_STATE_BITMASK;
+                    }
+
+                    run_handlers(&inputs[i]);
                 }
 
-                inputs[i].debouncing = false;
+                inputs[i].flags &= ~DEBOUNCING_BITMASK;
             }
         }
         else
         {
             // This pin is not currently being debounced, look for signal change
             int new_state = digitalRead(inputs[i].pin);
+            int old_state = (inputs[i].flags & PIN_STATE_BITMASK) ? HIGH : LOW;
 
-            if (new_state != inputs[i].pin_state)
+            if (new_state != old_state)
             {
                 if (inputs[i].debounce_time_ms > 0u)
                 {
@@ -245,34 +307,29 @@ void handleSoftwareInterrupts()
                     log_event(&inputs[i], "state changed, starting debounce");
 #endif
                     inputs[i].last_change_ms = millis();
-                    inputs[i].debouncing = true;
+                    inputs[i].flags |= DEBOUNCING_BITMASK;
                 }
                 else
                 {
                     // Debounce time is 0. Run handlers for this pin immediately, if applicable.
-                    if ((inputs[i].interrupt_mode == FALLING) ||
-                        (inputs[i].interrupt_mode == RISING) ||
-                        (inputs[i].interrupt_mode == CHANGE))
+                    if (new_state == HIGH)
                     {
-                        inputs[i].pin_state = new_state;
+                        inputs[i].flags |= PIN_STATE_BITMASK;
+                    }
+                    else
+                    {
+                        inputs[i].flags &= ~PIN_STATE_BITMASK;
+                    }
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
-                        log_event(&inputs[i], "state changed");
+                    log_event(&inputs[i], "state changed");
 #endif
-                        run_handlers(&inputs[i]);
-                    }
+                    run_handlers(&inputs[i]);
                 }
             }
         }
 
         // Run handlers for HIGH/LOW interrupt modes, based on debounced signal for this pin
-        if ((inputs[i].interrupt_mode == SW_PIN_INTERRUPTS_HIGH) && (inputs[i].pin_state == HIGH))
-        {
-            run_handlers(&inputs[i]);
-        }
-        else if ((inputs[i].interrupt_mode == SW_PIN_INTERRUPTS_LOW) && (inputs[i].pin_state == LOW))
-        {
-            run_handlers(&inputs[i]);
-        }
+        check_for_highlow(&inputs[i]);
     }
 }
