@@ -42,7 +42,7 @@ the delay. Helps when reading a "bouncy" signal like a button).
 ### Parameters
 
 * ```pin```: The pin number to set the debounce time for. Allowed data types: ```int```
-* ```debounceMillis```: The debounce time for this pin, in milliseconds.
+* ```debounceMillis```: The debounce time for this pin, in milliseconds. Allowed data types: ```int```
 
 ## disableSoftwareInterrupt
 
