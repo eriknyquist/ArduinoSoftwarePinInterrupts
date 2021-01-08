@@ -12,6 +12,7 @@
 
 /*
  * Defines how many pins can have have software interrupts attached. Increasing has a memory penalty.
+ * Must not be larger than 255.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_PINS
 #define SW_PIN_INTERRUPTS_MAX_PINS 8u
@@ -19,6 +20,7 @@
 
 /*
  * Defines how many handler functions can be attached to a single pin. Increasing has a memory penalty.
+ * Must not be larger than 255.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN
 #define SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN 4u
@@ -28,7 +30,7 @@
  * Prints extra debugging information on the serial port
  */
 #ifndef SW_PIN_INTERRUPTS_SERIAL_DEBUG
-#define SW_PIN_INTERRUPTS_SERIAL_DEBUG 1
+#define SW_PIN_INTERRUPTS_SERIAL_DEBUG 0
 #endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
 
 #define SW_PIN_INTERRUPTS_HIGH 4
@@ -44,14 +46,12 @@
 void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int interruptMode);
 
 /*
- * Attach a handler function to the provided pin with the provided interrupt mode. The input signal will be debounced.
+ * Set the debounce time for triggering software interrupts on a particular pin.
  *
- * @param pinNumber         Pin number to attach handler to
- * @param pinChangeHandler  Function to run on pin state change
- * @param interruptMode     Interrupt mode (must be RISING, FALLING, CHANGE, SW_PIN_INTERRUPTS_LOW or SW_PIN_INTERRUPTS_HIGH)
- * @param debounceMs        Debounce time in milliseconds
+ * @param pinNumber         Pin number to set debounce time for
+ * @param debounceMillis    Debounce time in milliseconds
  */
-void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int interruptMode, int debounceMs);
+void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis);
 
 /*
  * Temporarily disable interrupts for a pin that has software interrupts attached to it.

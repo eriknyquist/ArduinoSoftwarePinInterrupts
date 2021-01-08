@@ -10,6 +10,7 @@ attachSoftwareInterrupt	KEYWORD2
 disableSoftwareInterrupt	KEYWORD2
 enableSoftwareInterrupt	KEYWORD2
 handleSoftwareInterrupts	KEYWORD2
+setSoftwareInterruptDebounceMillis	KEYWORD2
 
 ######################################
 # Constants (LITERAL1)
