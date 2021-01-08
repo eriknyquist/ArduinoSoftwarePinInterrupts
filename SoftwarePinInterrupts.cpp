@@ -187,7 +187,7 @@ static pin_info_t *get_pin_with_init_values(int pinNumber, int debounceMs)
 /*
  * @see SoftwarePinInterrupts.h
  */
-static void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int interruptMode)
+void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int interruptMode)
 {
     pin_info_t *info = get_pin_with_init_values(pinNumber, 0);
 
