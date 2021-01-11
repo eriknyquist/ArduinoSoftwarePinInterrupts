@@ -1,8 +1,9 @@
 /*
  * SoftwarePinInterrupts.cpp
  *
- * Library for sensing state changes on digital input pins, similar to the attachInterrupt() function
- * but works on all digital pins. Supports multiple handlers on a single pin, and debouncing.
+ * This library implements a software-polling-based version of the "attachInterrupt" function,
+ * called "attachSoftwareInterrupt". This version supports all digital pins on all hardware types,
+ * supports attaching multiple handlers to a single pin, and also has built-in optional debouncing.
  *
  * Created by Erik Nyquist, January 3rd, 2021
  */
@@ -54,7 +55,7 @@ typedef struct
 
  /* Structure to hold all the information required to debounce/track a single pin.
   * In order to save as much RAM as possible, some integer fields are packed with multiple values,
-  * using only many bits as required. */
+  * using only as many bits as required. */
 typedef struct
 {
     interrupt_handler_t handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN]; // Handlers to run on pin state change
@@ -107,10 +108,12 @@ static void run_handlers(pin_info_t *info)
     uint16_t handler_count = GET_HANDLER_COUNT(info);
     for (uint16_t i = 0u; i < handler_count; i++)
     {
+        uint8_t pin_state = GET_PIN_STATE(info);
         interrupt_handler_t *event = &info->handlers[i];
+
         if ((event->mode == CHANGE) ||
-            ((GET_PIN_STATE(info) == 0u) && (event->mode == FALLING)) ||
-            (GET_PIN_STATE(info) && (event->mode == RISING)))
+            ((pin_state == 0u) && (event->mode == FALLING)) ||
+            (pin_state && (event->mode == RISING)))
         {
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             const char *eventstr = "unknown";
@@ -141,9 +144,11 @@ static void check_for_highlow(pin_info_t *info)
     uint16_t handler_count = GET_HANDLER_COUNT(info);
     for (uint16_t i = 0u; i < handler_count; i++)
     {
+        uint8_t pin_state = GET_PIN_STATE(info);
         interrupt_handler_t *event = &info->handlers[i];
-        if (((GET_PIN_STATE(info) == 0u) && (event->mode == SW_PIN_INTERRUPTS_LOW)) ||
-            (GET_PIN_STATE(info) && (event->mode == SW_PIN_INTERRUPTS_HIGH)))
+
+        if (((pin_state == 0u) && (event->mode == SW_PIN_INTERRUPTS_LOW)) ||
+            (pin_state && (event->mode == SW_PIN_INTERRUPTS_HIGH)))
         {
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             const char *eventstr = "unknown";
