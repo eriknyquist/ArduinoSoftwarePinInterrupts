@@ -5,6 +5,14 @@ This library implements a software-polling-based version of the "attachInterrupt
 attaching multiple handlers to a single pin, and also has built-in optional debouncing for your input
 signals.
 
+# Details
+
+* Supports any digital pin that works with ```digitalRead()``` (up to 12 pins may be used simultaneously)
+* Multiple handlers may be attached to a single pin (up to 4 handlers per pin)
+* Uses 238 bytes of RAM on Arduino Uno
+
+# Library Reference
+
 ## attachSoftwareInterrupt
 
 Registers a function to run whenever a specific event occurs on a specific pin

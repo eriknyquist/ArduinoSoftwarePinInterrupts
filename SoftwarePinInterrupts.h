@@ -12,15 +12,15 @@
 
 /*
  * Defines how many pins can have have software interrupts attached. Increasing has a memory penalty.
- * Must not be larger than 255.
+ * Must not be larger than 63.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_PINS
-#define SW_PIN_INTERRUPTS_MAX_PINS 8u
+#define SW_PIN_INTERRUPTS_MAX_PINS 12u
 #endif // SW_PIN_INTERRUPTS_MAX_PINS
 
 /*
  * Defines how many handler functions can be attached to a single pin. Increasing has a memory penalty.
- * Must not be larger than 255.
+ * Must not be larger than 31.
  */
 #ifndef SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN
 #define SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN 4u
@@ -48,8 +48,8 @@ void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int 
 /*
  * Set the debounce time for triggering software interrupts on a particular pin.
  *
- * @param pinNumber         Pin number to set debounce time for
- * @param debounceMillis    Debounce time in milliseconds
+ * @param pinNumber         Pin number to set debounce time for.
+ * @param debounceMillis    Debounce time in milliseconds. Max. valid value is 1023.
  */
 void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis);
 
