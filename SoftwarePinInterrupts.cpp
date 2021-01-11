@@ -5,7 +5,7 @@
  * called "attachSoftwareInterrupt". This version supports all digital pins on all hardware types,
  * supports attaching multiple handlers to a single pin, and also has built-in optional debouncing.
  *
- * Created by Erik Nyquist, January 3rd, 2021
+ * Created by Erik Nyquist (eknyquist@gmail.com), January 2021
  */
 
 #include "Arduino.h"
@@ -46,27 +46,32 @@
 #define SET_PIN_ENABLED(info, e)      {if (e) (info)->data2 |= ENABLED_BITMASK; else (info)->data2 &= ~ENABLED_BITMASK;}
 #define SET_PIN_DEBOUNCING(info, s)   {if (s) (info)->data2 |= DEBOUNCING_BITMASK; else (info)->data2 &= ~DEBOUNCING_BITMASK;}
 
-/* Structure to hold a single event callback, and the event it corresponds to */
+
+/* Holds a single event callback, and the event/interrupt mode it corresponds to */
 typedef struct
 {
     void (*handler)(void);         // The handler to run
     uint8_t mode;                  // The interrupt mode this handler was registered with
 } interrupt_handler_t;
 
- /* Structure to hold all the information required to debounce/track a single pin.
+ /* Holds all the information required to debounce/track a single pin.
   * In order to save as much RAM as possible, some integer fields are packed with multiple values,
   * using only as many bits as required. */
 typedef struct
 {
-    interrupt_handler_t handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN]; // Handlers to run on pin state change
-    unsigned long last_change_ms;                                         // millis() when last debounce was started
+    // Handlers to run on pin state change
+    interrupt_handler_t handlers[SW_PIN_INTERRUPTS_MAX_HANDLERS_PER_PIN];
 
-    /* [bits 0-9: debounce time, milliseconds] [bits 10-15: pin number]*/
+    // millis() when last debounce was started
+    unsigned long last_change_ms;
+
+    // [bits 0-9: debounce time, milliseconds] [bits 10-15: pin number]
     uint16_t data1;
 
-    /* [bits 0-4: handler count] [bit 5: interrupts enabled] [bit 6: pin state] [bit 7: pin debouncing] */
+    // [bits 0-4: handler count] [bit 5: interrupts enabled] [bit 6: pin state] [bit 7: pin debouncing]
     uint8_t data2;
 } pin_info_t;
+
 
 static uint8_t num_pins = 0;
 static pin_info_t inputs[SW_PIN_INTERRUPTS_MAX_PINS];
@@ -103,6 +108,7 @@ static void log_event(pin_info_t *info, const char *msg)
 }
 #endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
 
+
 static void run_handlers(pin_info_t *info)
 {
     uint16_t handler_count = GET_HANDLER_COUNT(info);
@@ -133,11 +139,12 @@ static void run_handlers(pin_info_t *info)
 
             (void) snprintf(buf, sizeof(buf), "%s event occurred", eventstr);
             log_event(info, buf);
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
             event->handler();
         }
     }
 }
+
 
 static void check_for_highlow(pin_info_t *info)
 {
@@ -165,11 +172,12 @@ static void check_for_highlow(pin_info_t *info)
 
             (void) snprintf(buf, sizeof(buf), "%s event occurred", eventstr);
             log_event(info, buf);
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
             event->handler();
         }
     }
 }
+
 
 static void init_pin_info(pin_info_t *info, int pinNumber, int debounceMs)
 {
@@ -182,12 +190,13 @@ static void init_pin_info(pin_info_t *info, int pinNumber, int debounceMs)
     info->last_change_ms = 0u;
 }
 
+
 static pin_info_t *get_pin_with_init_values(int pinNumber, int debounceMs)
 {
     pin_info_t *info = NULL;
 
     // Is this pin already registered?
-    for (int i = 0; i < num_pins; i++)
+    for (uint8_t i = 0u; i < num_pins; i++)
     {
         if (pinNumber == GET_PIN_NUMBER(&inputs[i]))
         {
@@ -214,6 +223,7 @@ static pin_info_t *get_pin_with_init_values(int pinNumber, int debounceMs)
 
     return info;
 }
+
 
 /*
  * @see SoftwarePinInterrupts.h
@@ -243,8 +253,9 @@ static void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
     log_event(info, "registering handler");
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
 }
+
 
 /*
  * @see SoftwarePinInterrupts.h
@@ -270,12 +281,13 @@ void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis)
     SET_DEBOUNCE_TIME(info, debounceMillis);
 }
 
+
 /*
  * @see SoftwarePinInterrupts.h
  */
 void disableSoftwareInterrupt(int pinNumber)
 {
-    for (int i = 0; i < num_pins; i++)
+    for (uint8_t i = 0u; i < num_pins; i++)
     {
         if (GET_PIN_NUMBER(&inputs[i]) == pinNumber)
         {
@@ -283,18 +295,19 @@ void disableSoftwareInterrupt(int pinNumber)
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             log_event(&inputs[i], "input disabled");
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
             break;
         }
     }
 }
+
 
 /*
  * @see SoftwarePinInterrupts.h
  */
 void enableSoftwareInterrupt(int pinNumber)
 {
-    for (int i = 0; i < num_pins; i++)
+    for (uint8_t i = 0u; i < num_pins; i++)
     {
         if (GET_PIN_NUMBER(&inputs[i]) == pinNumber)
         {
@@ -303,11 +316,12 @@ void enableSoftwareInterrupt(int pinNumber)
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
             log_event(&inputs[i], "input enabled");
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
             break;
         }
     }
 }
+
 
 /*
  * @see SoftwarePinInterrupts.h
@@ -354,7 +368,7 @@ void handleSoftwareInterrupts()
                     // Non-zero debounce time, start debounce timer for this pin
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
                     log_event(&inputs[i], "state changed, starting debounce");
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
                     inputs[i].last_change_ms = millis();
                     SET_PIN_DEBOUNCING(&inputs[i], 1u);
                 }
@@ -365,7 +379,7 @@ void handleSoftwareInterrupts()
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
                     log_event(&inputs[i], "state changed");
-#endif
+#endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
                     run_handlers(&inputs[i]);
                 }
             }

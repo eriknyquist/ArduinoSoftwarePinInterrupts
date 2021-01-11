@@ -13,7 +13,7 @@ signals.
 
 # Example sketch
 
-```
+```cpp
 #include "SoftwarePinInterrupts.h"
 
 void pin4FallingHandler()
@@ -110,9 +110,9 @@ Registers a function to run whenever a specific event occurs on a specific pin
 ## setSoftwareInterruptDebounceMillis
 
 Sets the debounce delay time for all handlers on a specific pin (when the state of a pin
-changes, instead of calling your handler immediately, we will wait this long and then
-check the state of the pin again, and only call you handler if it really did change after
-the delay. Helps when reading a "bouncy" signal like a button).
+changes, instead of calling attached handlers immediately, the library will wait this long
+and then check the state of the pin again, and only call attached handlers if it really did
+change after the delay. Helps when reading a "bouncy" signal like a button).
 
 ### Syntax
 
