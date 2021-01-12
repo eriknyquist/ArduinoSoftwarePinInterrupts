@@ -78,6 +78,12 @@ static pin_info_t inputs[SW_PIN_INTERRUPTS_MAX_PINS];
 
 
 #if SW_PIN_INTERRUPTS_SERIAL_DEBUG
+/**
+ * Logs a message (and timestamp) via Serial.print, useful for debugging
+ *
+ * @param info  Pointer to pin info instance related to the event that occurred
+ * @param msg   Pointer to message string
+ */
 static void log_event(pin_info_t *info, const char *msg)
 {
     unsigned long ms = millis();
@@ -109,6 +115,13 @@ static void log_event(pin_info_t *info, const char *msg)
 #endif // SW_PIN_INTERRUPTS_SERIAL_DEBUG
 
 
+/**
+ * Called whenever a pin state changes. Cycles through all handlers for that pin,
+ * and calls any required handlers based on the new pin state and the interrupt mode
+ * each handler was registered with.
+ *
+ * @param info  Pointer to pin info instance to run handlers for
+ */
 static void run_handlers(pin_info_t *info)
 {
     uint16_t handler_count = GET_HANDLER_COUNT(info);
@@ -146,6 +159,13 @@ static void run_handlers(pin_info_t *info)
 }
 
 
+/**
+ * Called for every registered pin on every call to handleSoftwareInterrupts.
+ * Runs any handlers registered with SW_PIN_INTERRUPTS_HIGH/SW_PIN_INTERRUPTS_LOW
+ * interrupt modes, if the current pin state matches.
+ *
+ * @param info  Pointer to pin info instance to run HIGH/LOW handlers for
+ */
 static void check_for_highlow(pin_info_t *info)
 {
     uint16_t handler_count = GET_HANDLER_COUNT(info);
@@ -179,10 +199,16 @@ static void check_for_highlow(pin_info_t *info)
 }
 
 
-static void init_pin_info(pin_info_t *info, int pinNumber, int debounceMs)
+/**
+ * Initialize a pin_info_t instance with sane initial values.
+ *
+ * @param info        Pointer to pin info instance to initialize
+ * @param pinNumber   pin number for new pin
+ */
+static void init_pin_info(pin_info_t *info, int pinNumber)
 {
     SET_PIN_NUMBER(info, pinNumber);
-    SET_DEBOUNCE_TIME(info, debounceMs);
+    SET_DEBOUNCE_TIME(info, 0u);
     SET_HANDLER_COUNT(info, 0u);
     SET_PIN_DEBOUNCING(info, 0u);
     SET_PIN_ENABLED(info, 1u);
@@ -191,7 +217,16 @@ static void init_pin_info(pin_info_t *info, int pinNumber, int debounceMs)
 }
 
 
-static pin_info_t *get_pin_with_init_values(int pinNumber, int debounceMs)
+/**
+ * Look up a registered pin info instance by pin number, or register a new pin
+ * if pin is not already registered.
+ *
+ * @param pinNumber  Pin number to look up
+ *
+ * @return  Pointer to pin info instance for requested pin number, or NULL if there
+ *          was no space to register a new pin.
+ */
+static pin_info_t *get_pin_init_if_required(int pinNumber)
 {
     pin_info_t *info = NULL;
 
@@ -218,19 +253,19 @@ static pin_info_t *get_pin_with_init_values(int pinNumber, int debounceMs)
         num_pins += 1;
 
         // First handler for this pin, set some initial values
-        init_pin_info(info, pinNumber, debounceMs);
+        init_pin_info(info, pinNumber);
     }
 
     return info;
 }
 
 
-/*
+/**
  * @see SoftwarePinInterrupts.h
  */
 static void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void), int interruptMode)
 {
-    pin_info_t *info = get_pin_with_init_values(pinNumber, 0);
+    pin_info_t *info = get_pin_init_if_required(pinNumber);
 
     if (NULL == info)
     {
@@ -257,7 +292,7 @@ static void attachSoftwareInterrupt(int pinNumber, void (*pinChangeHandler)(void
 }
 
 
-/*
+/**
  * @see SoftwarePinInterrupts.h
  */
 void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis)
@@ -271,7 +306,7 @@ void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis)
         debounceMillis = SW_PIN_INTERRUPTS_MAX_DEBOUNCE_MS;
     }
 
-    pin_info_t *info = get_pin_with_init_values(pinNumber, 0u);
+    pin_info_t *info = get_pin_init_if_required(pinNumber);
 
     if (NULL == info)
     {
@@ -282,7 +317,7 @@ void setSoftwareInterruptDebounceMillis(int pinNumber, int debounceMillis)
 }
 
 
-/*
+/**
  * @see SoftwarePinInterrupts.h
  */
 void disableSoftwareInterrupt(int pinNumber)
@@ -302,7 +337,7 @@ void disableSoftwareInterrupt(int pinNumber)
 }
 
 
-/*
+/**
  * @see SoftwarePinInterrupts.h
  */
 void enableSoftwareInterrupt(int pinNumber)
@@ -323,7 +358,7 @@ void enableSoftwareInterrupt(int pinNumber)
 }
 
 
-/*
+/**
  * @see SoftwarePinInterrupts.h
  */
 void handleSoftwareInterrupts()
