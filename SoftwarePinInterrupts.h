@@ -1,10 +1,11 @@
 /*
- * SoftwarePinInterrupts.ch
+ * SoftwarePinInterrupts.cpp
  *
- * Library for sensing state changes on digital input pins, similar to the attachInterrupt() function
- * but works on all digital pins. Supports optional debouncing, and multiple handlers on a single pin.
+ * This library implements a software-polling-based version of the "attachInterrupt" function,
+ * called "attachSoftwareInterrupt". This version supports all digital pins on all hardware types,
+ * supports attaching multiple handlers to a single pin, and also has built-in optional debouncing.
  *
- * Created by Erik Nyquist, January 3rd, 2021
+ * Created by Erik Nyquist (eknyquist@gmail.com), January 2021
  */
 
 #ifndef SoftwarePinInterrupts_h

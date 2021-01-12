@@ -16,29 +16,22 @@ signals.
 ```cpp
 #include "SoftwarePinInterrupts.h"
 
+// Function that runs when pin 4 goes from high to low
 void pin4FallingHandler()
 {
     Serial.println("Pin 4 level has fallen!");
 }
 
+// Function that runs when pin 4 goes from low to high
 void pin4RisingHandler()
 {
     Serial.println("Pin 4 level has risen!");
 }
 
-void pin4ChangeHandler()
-{
-    Serial.println("Pin 4 level has changed!");
-}
-
+// Function that runs when pin 5 goes from low to high
 void pin5RisingHandler()
 {
     Serial.println("Pin 5 level has risen!");
-}
-
-void pin6ChangeHandler()
-{
-    Serial.println("Pin 6 level has changed!");
 }
 
 void setup()
@@ -46,38 +39,27 @@ void setup()
     // For our print statements
     Serial.begin(115200);
 
-    Serial.println("started");
     // Set up all the pins we're going to use as inputs
     pinMode(4, INPUT_PULLUP);
     pinMode(5, INPUT_PULLUP);
-    pinMode(6, INPUT_PULLUP);
 
-    // Set a debounce time of 100 milliseconds for pin 4
+    // Set a debounce time of 100 milliseconds for pins 4 and 5
     setSoftwareInterruptDebounceMillis(4, 100);
+    setSoftwareInterruptDebounceMillis(5, 100);
 
     // Set up a handler to run when pin 4 goes from high to low
     attachSoftwareInterrupt(4, pin4FallingHandler, FALLING);
+
     // Set up another handler to run when pin 4 goes from low to high
     attachSoftwareInterrupt(4, pin4RisingHandler, RISING);
-    // Set up another handler to run when pin 4 changes in either direction
-    attachSoftwareInterrupt(4, pin4ChangeHandler, CHANGE);
-
-    // Set a debounce time of 100 milliseconds for pin 5
-    setSoftwareInterruptDebounceMillis(5, 100);
 
     // Set up a handler to run when pin 5 goes from low to high
     attachSoftwareInterrupt(5, pin5RisingHandler, RISING);
-
-    // Set a debounce time of 100 milliseconds for pin 6
-    setSoftwareInterruptDebounceMillis(6, 100);
-
-    // Set up a handler to run when pin 6 changes in either direction
-    attachSoftwareInterrupt(6, pin6ChangeHandler, CHANGE);
 }
 
 void loop()
 {
-    // Need to call handleSoftwareInterrupts in order for SoftwarePinInterrupts to work
+    // Need to call handleSoftwareInterrupts here in order for SoftwarePinInterrupts to work
     handleSoftwareInterrupts();
 }
 ```
